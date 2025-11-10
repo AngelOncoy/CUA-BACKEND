@@ -1,10 +1,10 @@
 # graphs/m1_interaccion/nodes/clarify.py
 from typing import Dict, Any
-from core.config import UMBRAL_CONFIANZA_NLP, GOOGLE_API_KEY
+from core.config import UMBRAL_CONFIANZA_NLP, GOOGLE_API_KEY, GEMINI_MODEL
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.2, google_api_key=GOOGLE_API_KEY)
+llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 
 def clarify_decide(state: Dict[str, Any]) -> str:
     e = state.get("entidades", {})

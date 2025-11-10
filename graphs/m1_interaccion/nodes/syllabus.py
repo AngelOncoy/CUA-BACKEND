@@ -2,13 +2,28 @@
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from core.config import GOOGLE_API_KEY
+from core.config import GOOGLE_API_KEY, GEMINI_MODEL
 
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.2, google_api_key=GOOGLE_API_KEY)
+llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 
 prompt_syl = ChatPromptTemplate.from_messages([
-    ("system", "Genera un sílabus modular con objetivos medibles y estimación de horas por módulo."),
-    ("user", "Mapping: {mapping}\nIndustria: {industria}\nNivel: {nivel}")
+    (
+        "system",
+        """Eres un diseñador instruccional especializado en formación empresarial.
+        Tu trabajo dentro del sistema AUTOMA es crear sílabus detallados a partir
+        de un mapa de competencias.
+
+        Debes generar:
+        - Objetivo general del curso.
+        - Lista de módulos con título, descripción y horas estimadas.
+        - Resultados de aprendizaje claros y medibles.
+
+        Formato: texto estructurado en Markdown.
+
+        Sé conciso, profesional y pedagógico. Usa verbos de acción (identificar,
+        aplicar, analizar, diseñar)."""
+    ),
+    ("user", "Competencias: {mapping}\nIndustria: {industria}\nNivel: {nivel}")
 ])
 
 def syllabus_node(state: Dict[str, Any]) -> Dict[str, Any]:

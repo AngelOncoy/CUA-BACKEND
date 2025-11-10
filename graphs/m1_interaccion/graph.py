@@ -4,12 +4,12 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from core.config import GRAPH_DB_PATH
-from .nodes.nlp import nlp_node
-from .nodes.clarify import clarify_decide, ask_node, after_answers_router
-from .nodes.mapping import map_node
-from .nodes.syllabus import syllabus_node
-from .nodes.pricing import pricing_node
-from .nodes.proposal import proposal_node, approval_router
+from graphs.m1_interaccion.nodes.nlp import nlp_node
+from graphs.m1_interaccion.nodes.clarify import clarify_decide, ask_node, after_answers_router
+from graphs.m1_interaccion.nodes.mapping import map_node
+from graphs.m1_interaccion.nodes.syllabus import syllabus_node
+from graphs.m1_interaccion.nodes.pricing import pricing_node
+from graphs.m1_interaccion.nodes.proposal import proposal_node, approval_router
 
 class M1State(TypedDict, total=False):
     prompt_raw: str

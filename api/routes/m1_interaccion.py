@@ -47,3 +47,18 @@ def submit_answers(data: AnswersIn):
 def submit_approval(data: ApprovalIn):
     state = app_graph.invoke({"decision": data.decision}, config=cfg_for(data.run_id))
     return {"run_id": data.run_id, "status": "END" if data.decision in ("APROBADO","RECHAZADO") else "ASK"}
+
+# --- ENDPOINT TEMPORAL PARA PROBAR SOLO EL NLP ---
+from graphs.m1_interaccion.nodes.nlp import nlp_node
+
+@router.post("/nlp_test")
+def test_nlp_node(data: PromptIn):
+    """
+    Prueba aislada del nodo NLP. Recibe un prompt y devuelve las entidades detectadas.
+    """
+    state = {"prompt_raw": data.prompt}
+    result = nlp_node(state)
+    return {
+        "entidades": result.get("entidades"),
+        "confianza_nlp": result.get("confianza_nlp")
+    }
