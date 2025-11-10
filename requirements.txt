@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+
+# --- LangChain stack estable para LangGraph ---
+langchain==0.3.7
+langchain-core==0.3.63
+langchain-community==0.3.7
+langgraph==0.2.32
+
+# --- Integración Gemini compatible ---
+langchain-google-genai==2.0.0
+google-generativeai==0.6.5
+
+# --- Otros ---
+faiss-cpu
