@@ -1,7 +1,7 @@
 # api/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import m1_interaccion, health
+from api.routes import m1_interaccion, health
 
 app = FastAPI(title="AUTOMA Backend", version="1.0.0")
 

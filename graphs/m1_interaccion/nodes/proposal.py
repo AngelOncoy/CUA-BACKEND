@@ -2,14 +2,15 @@
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from core.config import GOOGLE_API_KEY
+from core.config import GOOGLE_API_KEY, GEMINI_MODEL
 
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.2, google_api_key=GOOGLE_API_KEY)
+llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 
 prompt_prop = ChatPromptTemplate.from_messages([
     ("system", "Genera una propuesta ejecutiva en HTML simple (h2, p, ul) con sílabus y precio."),
     ("user", "Sílabus:\n{syllabus}\nPrecio:\n{precio}")
 ])
+
 
 def proposal_node(state: Dict[str, Any]) -> Dict[str, Any]:
     html = (prompt_prop | llm).invoke({
