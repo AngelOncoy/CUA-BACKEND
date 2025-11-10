@@ -5,6 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from core.config import GOOGLE_API_KEY, GEMINI_MODEL
+from core.utils import timed_node
 
 llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 
@@ -53,10 +54,12 @@ prompt_nlp = ChatPromptTemplate.from_messages([
     ("user", "{prompt}")
 ])
 
+@timed_node
 def nlp_node(state: Dict[str, Any]) -> Dict[str, Any]:
     chain = prompt_nlp | llm | parser
     ent = chain.invoke({"prompt": state["prompt_raw"]})
     state["entidades"] = ent.model_dump()
     state["confianza_nlp"] = ent.confianza
     return state
+
 

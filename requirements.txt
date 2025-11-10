@@ -8,6 +8,7 @@ langchain==0.3.7
 langchain-core==0.3.63
 langchain-community==0.3.7
 langgraph==0.2.32
+langgraph-checkpoint-sqlite
 
 # --- Integración Gemini compatible ---
 langchain-google-genai==2.0.0
