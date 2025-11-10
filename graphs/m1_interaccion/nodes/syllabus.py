@@ -1,8 +1,9 @@
-# backend/graphs/m1_interaccion/nodes/syllabus.py
+# graphs/m1_interaccion/nodes/syllabus.py
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from core.config import GOOGLE_API_KEY, GEMINI_MODEL
+from core.utils import timed_node
 
 llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 
@@ -26,6 +27,7 @@ prompt_syl = ChatPromptTemplate.from_messages([
     ("user", "Competencias: {mapping}\nIndustria: {industria}\nNivel: {nivel}")
 ])
 
+@timed_node
 def syllabus_node(state: Dict[str, Any]) -> Dict[str, Any]:
     ent = state.get("entidades", {})
     msg = (prompt_syl | llm).invoke({
