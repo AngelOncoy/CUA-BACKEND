@@ -1,0 +1,54 @@
+# ============================
+# ⚙️  PROYECTO AUTOMA - BACKEND
+# ============================
+
+# --- ENTORNOS VIRTUALES ---
+.venv/
+env/
+venv/
+
+# --- CONFIGURACIONES LOCALES ---
+.env
+*.env
+.vscode/
+.idea/
+*.log
+*.tmp
+
+# --- COMPILADOS Y CACHÉ PYTHON ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dll
+
+# 🚨 Pero queremos mantener el de m2_creacion
+!graphs/m2_creacion/__pycache__/
+
+# --- ARCHIVOS GENERADOS AUTOMÁTICAMENTE ---
+*.state.json
+*.canonical.json
+*.payload.txt
+
+# --- DATA PESADA (IGNORAR) ---
+data/
+notebooks/
+outputs/
+*.ipynb_checkpoints
+
+# --- PRUEBAS Y TEMPORALES ---
+pytest_cache/
+.coverage
+dist/
+build/
+*.egg-info/
+
+# --- ARCHIVOS A MANTENER ---
+# ✅ Queremos subir estos directorios con resultados
+!artifacts/
+!runs/
+
+# --- OTROS ---
+.DS_Store
+Thumbs.db
