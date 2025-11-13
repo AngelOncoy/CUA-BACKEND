@@ -17,3 +17,5 @@ google-generativeai
 # --- Otros ---
 faiss-cpu
 beautifulsoup4
+aiosmtplib
+pydantic[email]
