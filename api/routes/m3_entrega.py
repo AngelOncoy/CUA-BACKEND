@@ -1,6 +1,9 @@
 """
-Endpoints de API para el Macroproceso 3
+api.routes.m3_entrega.py
+Endpoints oficiales del Macroproceso 3
+Entrega y Administración Automatizada del Aprendizaje
 """
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import List, Dict, Any, Optional
@@ -9,11 +12,17 @@ import logging
 
 from graphs.m3_entrega.graph import m3_app
 
-router = APIRouter(prefix="/m3", tags=["Macroproceso 3 - Entrega"])
+router = APIRouter(
+    prefix="/m3",
+    tags=["Macroproceso 3 - Entrega"]
+)
+
 logger = logging.getLogger(__name__)
 
 
-# ===== MODELOS DE REQUEST =====
+# ============================================================
+# Modelos
+# ============================================================
 
 class IniciarEntregaRequest(BaseModel):
     """Request para iniciar el proceso de entrega"""
@@ -22,66 +31,28 @@ class IniciarEntregaRequest(BaseModel):
     cliente_email: EmailStr
     syllabus_aprobado: Dict[str, Any]
     empleados: Optional[List[Dict[str, Any]]] = None
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "curso_id": "CURSO-001",
-                "cliente_id": "CLI-123",
-                "cliente_email": "cliente@empresa.com",
-                "syllabus_aprobado": {
-                    "titulo": "Técnicas Avanzadas de Ventas B2B",
-                    "descripcion": "Curso completo de ventas",
-                    "duracion_horas": 12,
-                    "nivel": "intermedio",
-                    "industria": "ventas",
-                    "precio": 2500.00
-                },
-                "empleados": [
-                    {
-                        "empleado_id": "EMP001",
-                        "nombre": "Juan Pérez",
-                        "email": "juan@empresa.com",
-                        "departamento": "Ventas"
-                    }
-                ]
-            }
-        }
 
 
 class ConsultarProgressRequest(BaseModel):
-    """Request para consultar progreso"""
+    """Request para consultar el progreso"""
     run_id: str
 
 
-# ===== ENDPOINTS =====
+# ============================================================
+# Inicio del macroproceso
+# ============================================================
 
 @router.post("/iniciar")
 async def iniciar_entrega(request: IniciarEntregaRequest):
     """
-    Inicia el proceso completo de entrega y administración del aprendizaje.
-    
-    Ejecuta secuencialmente:
-    1. Publicación en LMS
-    2. Notificación al cliente
-    3. Asignación de empleados
-    4. Activación de gamificación
-    5. Generación de analytics
-    6. Emisión de certificados (si aplica)
-    
-    Returns:
-        - run_id: ID único del proceso
-        - status: Estado actual
-        - lms_course_id: ID del curso en el LMS
-        - url_acceso: URL para acceder al curso
+    Inicia el macroproceso completo M3: publicación, notificación,
+    asignación, gamificación, analytics y certificación.
     """
+
     try:
-        # Generar ID único para el proceso
         run_id = f"M3-{uuid.uuid4().hex[:12].upper()}"
-        
-        logger.info(f"[API] Iniciando entrega {run_id} para curso {request.curso_id}")
-        
-        # Preparar estado inicial
+        logger.info(f"🔵 [M3] Iniciando entrega {run_id} para curso {request.curso_id}")
+
         initial_state = {
             "run_id": run_id,
             "curso_id": request.curso_id,
@@ -93,18 +64,11 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
             "errors": [],
             "timestamp_inicio": None
         }
-        
-        # Configuración para persistencia
-        config = {
-            "configurable": {
-                "thread_id": run_id
-            }
-        }
-        
-        # Ejecutar el grafo completo
+
+        config = {"configurable": {"thread_id": run_id}}
+
         final_state = await m3_app.ainvoke(initial_state, config=config)
-        
-        # Preparar respuesta
+
         response = {
             "run_id": run_id,
             "status": final_state.get("status", "COMPLETADO"),
@@ -117,140 +81,98 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
             "certificados_emitidos_count": len(final_state.get("certificados_emitidos", [])),
             "errors": final_state.get("errors", [])
         }
-        
-        if response["errors"]:
-            logger.warning(f"[API] Entrega {run_id} completada con errores: {response['errors']}")
-        else:
-            logger.info(f"[API] ✓ Entrega {run_id} completada exitosamente")
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"[API] ✗ Error en iniciar_entrega: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al iniciar entrega: {str(e)}"
-        )
 
+        logger.info(f"🟢 [M3] Entrega finalizada {run_id}")
+        return response
+
+    except Exception as e:
+        logger.error(f"🔴 [M3] Error en iniciar_entrega: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al iniciar entrega: {str(e)}")
+
+
+# ============================================================
+# Consultar progreso
+# ============================================================
 
 @router.post("/consultar-progreso")
 async def consultar_progreso(request: ConsultarProgressRequest):
-    """
-    Consulta el progreso actual de un curso en ejecución.
-    
-    Returns:
-        - Analytics dashboard con métricas en tiempo real
-        - Progreso individual de cada empleado
-        - Certificados emitidos
-    """
+
     try:
         run_id = request.run_id
-        
-        logger.info(f"[API] Consultando progreso de {run_id}")
-        
-        # Configuración para recuperar el estado
-        config = {
-            "configurable": {
-                "thread_id": run_id
-            }
-        }
-        
-        # Obtener estado actual del grafo
-        state = await m3_app.aget_state(config)
-        
-        if not state or not state.values:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontró el proceso {run_id}"
-            )
-        
-        current_state = state.values
-        
-        # Preparar respuesta con analytics
-        response = {
-            "run_id": run_id,
-            "status": current_state.get("status"),
-            "lms_course_id": current_state.get("lms_course_id"),
-            "analytics_dashboard": current_state.get("analytics_dashboard", {}),
-            "metricas_empleados": current_state.get("metricas_progreso", []),
-            "certificados_emitidos": current_state.get("certificados_emitidos", []),
-            "ultima_actualizacion": current_state.get("timestamp_fin")
-        }
-        
-        return response
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[API] ✗ Error en consultar_progreso: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al consultar progreso: {str(e)}"
-        )
+        logger.info(f"🟡 [M3] Consultando progreso de {run_id}")
 
+        config = {"configurable": {"thread_id": run_id}}
+        state = await m3_app.aget_state(config)
+
+        if not state or not state.values:
+            raise HTTPException(status_code=404, detail="Proceso no encontrado")
+
+        s = state.values
+
+        return {
+            "run_id": run_id,
+            "status": s.get("status"),
+            "lms_course_id": s.get("lms_course_id"),
+            "analytics_dashboard": s.get("analytics_dashboard", {}),
+            "metricas_empleados": s.get("metricas_progreso", []),
+            "certificados_emitidos": s.get("certificados_emitidos", []),
+            "ultima_actualizacion": s.get("timestamp_fin")
+        }
+
+    except Exception as e:
+        logger.error(f"🔴 [M3] Error consultando progreso: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error consultando progreso: {str(e)}")
+
+
+# ============================================================
+# Actualizar métricas manualmente
+# ============================================================
 
 @router.post("/actualizar-analytics/{run_id}")
 async def actualizar_analytics(run_id: str):
     """
-    Fuerza una actualización del dashboard de analytics.
-    
-    Útil para refrescar métricas en tiempo real.
+    Fuerza una re-evaluación de analytics y certificación.
     """
+
     try:
-        logger.info(f"[API] Actualizando analytics para {run_id}")
-        
-        config = {
-            "configurable": {
-                "thread_id": run_id
-            }
-        }
-        
-        # Obtener estado actual
+        logger.info(f"🟠 [M3] Actualizando analytics para {run_id}")
+
+        config = {"configurable": {"thread_id": run_id}}
         state = await m3_app.aget_state(config)
-        
+
         if not state or not state.values:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No se encontró el proceso {run_id}"
-            )
-        
-        current_state = state.values
-        
-        # Re-ejecutar solo el nodo de monitoreo
+            raise HTTPException(status_code=404, detail="Proceso no encontrado")
+
+        current = state.values
+
         from graphs.m3_entrega.nodes.monitoreo import generar_analytics
         from graphs.m3_entrega.nodes.certificacion import emitir_certificados
-        
-        # Actualizar analytics
-        updated_state = await generar_analytics(current_state)
-        
-        # Re-evaluar certificaciones
-        updated_state = await emitir_certificados(updated_state)
-        
-        # Actualizar el checkpoint
-        await m3_app.aupdate_state(config, updated_state)
-        
+
+        updated = await generar_analytics(current)
+        updated = await emitir_certificados(updated)
+
+        await m3_app.aupdate_state(config, updated)
+
         return {
             "run_id": run_id,
             "actualizado": True,
-            "analytics_dashboard": updated_state.get("analytics_dashboard", {}),
-            "nuevos_certificados": len(updated_state.get("certificados_emitidos", []))
+            "analytics_dashboard": updated.get("analytics_dashboard", {}),
+            "nuevos_certificados": len(updated.get("certificados_emitidos", []))
         }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"[API] ✗ Error en actualizar_analytics: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al actualizar analytics: {str(e)}"
-        )
 
+    except Exception as e:
+        logger.error(f"🔴 [M3] Error en actualizar_analytics: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error actualizando analytics: {str(e)}")
+
+
+# ============================================================
+# Health
+# ============================================================
 
 @router.get("/health")
 async def health_check():
-    """Health check del servicio M3"""
     return {
-        "service": "Macroproceso 3 - Entrega y Administración",
+        "service": "Macroproceso 3",
         "status": "healthy",
         "version": "1.0.0"
     }

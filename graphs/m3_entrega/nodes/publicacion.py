@@ -5,7 +5,6 @@ Subproceso 3.1.1
 import logging
 from typing import Dict, Any
 from datetime import datetime
-import httpx
 
 logger = logging.getLogger(__name__)
 

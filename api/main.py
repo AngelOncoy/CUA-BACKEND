@@ -1,131 +1,88 @@
 # api/main.py
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import m1_interaccion, health
-from routes.m3_entrega import router as m3_router
-from routes.publicacion import router as publicacion_router
-from routes.gestion import router as gestion_router
-from routes.monitoreo import router as monitoreo_router
-import logging
 from contextlib import asynccontextmanager
+import logging
 
-app = FastAPI(title="AUTOMA Backend", version="1.0.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"]
-)
-
-app.include_router(health.router, tags=["Health"])
-app.include_router(m1_interaccion.router, prefix="/m1", tags=["Macroproceso 1"])
-
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "AUTOMA backend corriendo correctamente"}
+# Routers oficiales
+from api.routes.m1_interaccion import router as m1_router
+from api.routes.m2_creacion import router as m2_router
+from api.routes.m3_entrega import router as m3_router
 
 
-app = FastAPI(title="Macroproceso 3 API")
-
-app.include_router(m3_router)
-app.include_router(publicacion_router)
-app.include_router(gestion_router)
-app.include_router(monitoreo_router)
-
-# Configurar logging
+# ==========================
+# Logging
+# ==========================
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("AUTOMA")
 
 
+# ==========================
+# Lifespan
+# ==========================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gestión del ciclo de vida de la aplicación"""
-    logger.info("🚀 Iniciando Macroproceso 3: Entrega y Administración")
-    logger.info("=" * 60)
+    logger.info("🚀 Iniciando Centro de Capacitación Ultra-Automatizado")
     yield
-    logger.info("🛑 Cerrando Macroproceso 3")
+    logger.info("🛑 Apagando servicio AUTOMA")
 
 
-# Crear aplicación FastAPI
+# ==========================
+# App única
+# ==========================
 app = FastAPI(
-    title="Centro de Capacitación Ultra-Automatizado - Macroproceso 3",
+    title="Centro de Capacitación Ultra-Automatizado",
     description="""
-    Sistema de Entrega y Administración del Aprendizaje completamente automatizado.
-    
-    ## Procesos Automatizados:
-    
-    ### 3.1 Publicación y Comunicación
-    - Publicación automática en LMS
-    - Notificación inmediata por email
-    
-    ### 3.2 Gestión del Aprendizaje
-    - Asignación automática de empleados
-    - Sistema de gamificación integrado
-    
-    ### 3.3 Monitoreo y Evaluación
-    - Dashboard de analytics en tiempo real
-    - Emisión automática de certificaciones digitales
-    
-    ## Métricas Objetivo:
-    - Tiempo de entrega tras pago: **inmediato - 5 minutos**
-    - Tasa de finalización de cursos: **65-75%**
+    Sistema de Macroprocesos:
+    - M1: Interacción y recolección de requerimientos
+    - M2: Creación del curso
+    - M3: Entrega y administración automatizada
     """,
     version="1.0.0",
     lifespan=lifespan
 )
 
-# Configurar CORS
+
+# ==========================
+# CORS
+# ==========================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar dominios permitidos
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Importar y registrar rutas
-from api.routes.m3_entrega import router as m3_router
 
-app.include_router(m3_router)
-
-
-@app.get("/")
-async def root():
-    """Endpoint raíz con información del servicio"""
-    return {
-        "service": "Macroproceso 3: Entrega y Administración del Aprendizaje",
-        "version": "1.0.0",
-        "status": "operational",
-        "description": "Sistema automatizado de publicación, asignación y monitoreo de cursos",
-        "endpoints": {
-            "iniciar_entrega": "/m3/iniciar",
-            "consultar_progreso": "/m3/consultar-progreso",
-            "actualizar_analytics": "/m3/actualizar-analytics/{run_id}",
-            "health": "/m3/health",
-            "docs": "/docs"
-        }
-    }
+# ==========================
+# Routers reales por macroproceso
+# ==========================
+app.include_router(m1_router, prefix="/m1", tags=["Macroproceso 1"])
+app.include_router(m2_router, prefix="/m2", tags=["Macroproceso 2"])
+app.include_router(m3_router, prefix="/m3", tags=["Macroproceso 3"])
 
 
+# ==========================
+# Health global
+# ==========================
 @app.get("/health")
 async def health():
-    """Health check general"""
-    return {
-        "status": "healthy",
-        "service": "m3-entrega",
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "AUTOMA", "version": "1.0.0"}
 
 
+# ==========================
+# Runner
+# ==========================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8003,
-        reload=True,
-        log_level="info"
+        reload=True
     )
