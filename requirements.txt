@@ -16,3 +16,4 @@ google-generativeai
 
 # --- Otros ---
 faiss-cpu
+beautifulsoup4
