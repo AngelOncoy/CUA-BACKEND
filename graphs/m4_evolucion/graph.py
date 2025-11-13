@@ -1,4 +1,4 @@
-# graphs/m4_interaccion/graph.py
+# graphs/m4_evolucion/graph.py
 
 from typing import TypedDict, List, Optional, Dict, Any
 from langgraph.graph import StateGraph, END
@@ -36,7 +36,7 @@ class M4State(TypedDict, total=False):
 
     # DETECCIÓN DE BRECHAS
     gaps_detected: Optional[bool]
-    gap_details: Optional[Dict[str, Any]]
+    gap_details: Optional[List[Dict[str, Any]]]
 
     # GENERACIÓN DE CONTENIDO
     generated_content: Optional[str]
