@@ -1,8 +1,10 @@
 def update_knowledge_base_node(state):
     """
-    NODO M4 — ACTUALIZAR BASE DE CONOCIMIENTO
+    Nodo M4 — Actualización de Base de Conocimiento
+    LangGraph EXIGE que cada nodo escriba al menos 1 campo permitido.
+    Usamos 'report' como campo dummy para cumplir la regla.
     """
+
     return {
-        "kb_status": "updated",
-        "kb_message": "Reglas y patrones integrados a la base de conocimiento."
+        "report": "Base de conocimiento actualizada correctamente."
     }

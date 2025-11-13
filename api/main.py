@@ -9,6 +9,8 @@ import logging
 from api.routes.m1_interaccion import router as m1_router
 from api.routes.m2_creacion import router as m2_router
 from api.routes.m3_entrega import router as m3_router
+from api.routes.m4_evolucion import router as m4_router
+
 
 
 # ==========================
@@ -41,6 +43,7 @@ app = FastAPI(
     - M1: Interacción y recolección de requerimientos
     - M2: Creación del curso
     - M3: Entrega y administración automatizada
+    
     """,
     version="1.0.0",
     lifespan=lifespan
@@ -65,6 +68,8 @@ app.add_middleware(
 app.include_router(m1_router, prefix="/m1", tags=["Macroproceso 1"])
 app.include_router(m2_router, prefix="/m2", tags=["Macroproceso 2"])
 app.include_router(m3_router, prefix="/m3", tags=["Macroproceso 3"])
+app.include_router(m4_router, prefix="/m4", tags=["Macroproceso 4"])
+
 
 
 # ==========================
