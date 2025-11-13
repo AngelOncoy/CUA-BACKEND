@@ -159,14 +159,15 @@ def create_paypal_payment(data: PaymentRequest):
     """
     log.info(f"[PAYPAL] Creando pago por {data.monto} USD")
 
-    approval_url = create_paypal_order(
-        total=data.monto,
+    order = create_paypal_order(
+        amount=data.monto,
         description=data.descripcion
     )
 
     return {
         "status": "PAYMENT_CREATED",
-        "approval_url": approval_url
+        "order_id": order["order_id"],
+        "approval_url": order["approval_url"]
     }
 
 
@@ -197,3 +198,31 @@ def paypal_cancel():
         "status": "CANCELLED",
         "message": "El usuario canceló el pago."
     }
+
+
+@router.post("/m1/paypal/create")
+def create_paypal_payment(data: dict):
+    try:
+        monto = float(data.get("monto"))
+        descripcion = data.get("descripcion", "Compra en plataforma CUA")
+
+        log.info(f"[PAYPAL] Creando pago por {monto} USD")
+
+        from services.paypal_service import create_paypal_order
+
+        approval_url = create_paypal_order(
+            amount=monto,
+            description=descripcion
+        )
+
+        return {
+            "status": "PAYMENT_CREATED",
+            "approval_url": approval_url
+        }
+
+    except Exception as e:
+        log.error(f"[PAYPAL ERROR] {e}")
+        return {
+            "status": "ERROR",
+            "message": str(e)
+        }
