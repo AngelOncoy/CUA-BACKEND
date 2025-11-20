@@ -17,12 +17,9 @@ google-generativeai
 # --- Otros ---
 faiss-cpu
 beautifulsoup4
-<<<<<<< HEAD
 aiosmtplib
 pydantic[email]
-=======
 aiohttp
 httpx
 requests
 SQLAlchemy
->>>>>>> 566ced2 (Modificacones)
