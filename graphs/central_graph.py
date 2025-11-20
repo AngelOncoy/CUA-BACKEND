@@ -66,7 +66,11 @@ def build_graph():
 class M4State(Dict[str, Any]):
     """
     Estado para el Macroproceso 4 – Evolución de Contenido.
+    Este estado incluye tanto los campos "principales"
+    como los campos intermedios que escriben los nodos.
     """
+
+    # Campos principales del curso y flujo
     course_id: Optional[str]
     course_data: Dict[str, Any]
     prompts_history: List[Dict[str, Any]]
@@ -78,6 +82,17 @@ class M4State(Dict[str, Any]):
     validation_result: Dict[str, Any]
     updated_content: Dict[str, Any]
     knowledge_base_updates: List[Dict[str, Any]]
+
+    # Campos que realmente escriben tus nodos (intermedios)
+    prompts_analysis: Dict[str, Any]
+    gaps_detected: bool
+    gap_details: List[Dict[str, Any]]
+    generated_content: str
+    content_validated: bool
+    validation_score: float
+    message: str
+    report: str
+
 
 def build_m4_graph():
     g = StateGraph(M4State)

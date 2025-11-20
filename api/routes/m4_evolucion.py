@@ -1,45 +1,41 @@
+# api/routes/m4_evolucion.py
+
+from typing import Any, Dict, Optional
+
 from fastapi import APIRouter
 from pydantic import BaseModel
-from uuid import uuid4
 
-from graphs.m4_evolucion.graph import m4_app
+from graphs.central_graph import build_m4_graph
 
+# OJO: aquí NO usamos prefix="/m4"
+# porque el prefix ya lo pone api/main.py al incluir el router.
 router = APIRouter()
 
 
-class PromptIn(BaseModel):
-    prompt: str
+class M4Request(BaseModel):
+    """
+    Payload de entrada para el Macroproceso 4.
+    Por ahora solo usamos course_id opcional.
+    Más adelante puedes agregar más campos si los necesitas.
+    """
+    course_id: Optional[str] = None
 
 
-class ContinueIn(BaseModel):
-    run_id: str
-    data: dict = {}
+@router.post("/run", summary="Ejecutar Macroproceso 4 (Evolución de contenido)")
+def run_m4(request: M4Request) -> Dict[str, Any]:
+    """
+    Ejecuta el grafo completo del Macroproceso 4 usando build_m4_graph()
+    definido en graphs/central_graph.py y devuelve el estado final.
+    """
+    # Construimos el grafo de M4
+    app = build_m4_graph()
 
+    # Estado inicial mínimo
+    initial_state: Dict[str, Any] = {}
+    if request.course_id is not None:
+        initial_state["course_id"] = request.course_id
 
-def cfg_for(run_id: str):
-    return {"configurable": {"thread_id": run_id}}
+    # Ejecutamos TODO el flujo de M4
+    final_state = app.invoke(initial_state)
 
-
-# ===========================
-# POST /m4/prompt  → iniciar flujo M4
-# ===========================
-@router.post("/prompt")
-async def start_m4(data: PromptIn):
-    run_id = str(uuid4())
-    state = await m4_app.ainvoke(
-        {"prompt_raw": data.prompt},
-        config=cfg_for(run_id)
-    )
-    return {"run_id": run_id, "state": state}
-
-
-# ===========================
-# POST /m4/next → continuar flujo M4
-# ===========================
-@router.post("/next")
-async def continue_m4(data: ContinueIn):
-    state = await m4_app.ainvoke(
-        data.data,
-        config=cfg_for(data.run_id)
-    )
-    return {"run_id": data.run_id, "state": state}
+    return final_state
