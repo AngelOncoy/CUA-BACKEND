@@ -1,4 +1,4 @@
-# graphs/m4_evolucion/graph.py
+# graphs/m4_evolucion/central_graph.py
 
 import logging
 from typing import TypedDict, List, Optional, Dict, Any
