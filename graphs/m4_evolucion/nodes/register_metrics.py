@@ -1,4 +1,7 @@
-def register_metrics_node(state):
+from typing import Dict, Any
+
+
+def register_metrics_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     NODO M4 — REGISTRAR MÉTRICAS
     """
@@ -9,3 +12,10 @@ def register_metrics_node(state):
     }
 
     return {"metrics": metrics}
+
+
+def register_metrics(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Adaptador para el grafo central.
+    """
+    return register_metrics_node(state)

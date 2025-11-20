@@ -1,4 +1,7 @@
-def generate_additional_content_node(state):
+from typing import Dict, Any
+
+
+def generate_additional_content_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     NODO M4 — GENERAR CONTENIDO ADICIONAL
     Aquí no asumimos que gap_details tenga 'tema'.
@@ -27,3 +30,10 @@ def generate_additional_content_node(state):
     return {
         "generated_content": contenido
     }
+
+
+def generate_additional_content(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Adaptador para el grafo central.
+    """
+    return generate_additional_content_node(state)

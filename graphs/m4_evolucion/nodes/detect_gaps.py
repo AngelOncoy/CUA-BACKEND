@@ -1,4 +1,7 @@
-def detect_gaps_node(state):
+from typing import Dict, Any
+
+
+def detect_gaps_node(state: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "gaps_detected": True,
         "gap_details": [
@@ -8,3 +11,10 @@ def detect_gaps_node(state):
             }
         ]
     }
+
+
+def detect_gaps(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Adaptador para el grafo central.
+    """
+    return detect_gaps_node(state)

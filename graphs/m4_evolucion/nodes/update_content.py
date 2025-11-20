@@ -1,3 +1,4 @@
+from typing import Dict, Any
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
@@ -17,7 +18,7 @@ except Exception:
     VECTORSTORE_AVAILABLE = False
 
 
-def update_content_node(state):
+def update_content_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     NODO M4 — ACTUALIZAR CONTENIDO FINAL
     Si FAISS no existe -> retorna contenido simple.
@@ -48,3 +49,10 @@ def update_content_node(state):
     """
 
     return {"updated_content": final}
+
+
+def update_content(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Adaptador para el grafo central.
+    """
+    return update_content_node(state)
