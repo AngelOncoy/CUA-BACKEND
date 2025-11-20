@@ -5,9 +5,21 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from core.utils import timed_node
 import logging
+import os
 
 llm = ChatGoogleGenerativeAI(model=GEMINI_MODEL, temperature=0.2, api_key=GOOGLE_API_KEY)
 log = logging.getLogger(__name__)
+
+# Función para leer el archivo de prompt
+def read_file(file_path: str) -> str:
+    dir_actual = os.path.dirname(os.path.abspath(__file__))
+    prompt_file_path = os.path.join(dir_actual, file_path)
+
+    with open(prompt_file_path, "r", encoding="utf-8") as file:
+        return file.read()
+
+# Cargar el prompt de clarificación desde el archivo
+prompt_clarify_text = read_file("prompts/prompt_clarify.txt")
 
 # -----------------------------------------------------
 # Decide si el prompt tiene suficiente información
@@ -53,7 +65,7 @@ def clarify_decide(state: Dict[str, Any]) -> str:
 # Genera las preguntas solo si faltan datos
 # -----------------------------------------------------
 prompt_ask = ChatPromptTemplate.from_messages([
-    ("system", "Formula hasta 3 preguntas breves para completar los datos faltantes del cliente."),
+    ("system", prompt_clarify_text),
     ("user", "Entidades detectadas: {entidades}")
 ])
 
