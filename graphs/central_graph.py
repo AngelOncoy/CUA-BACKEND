@@ -1,4 +1,5 @@
 # graphs/central_graph.py
+#m1
 from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 from graphs.m1_interaccion.nodes.nlp import nlp_node
@@ -7,6 +8,18 @@ from graphs.m1_interaccion.nodes.mapping import map_node
 from graphs.m1_interaccion.nodes.syllabus import syllabus_node
 from graphs.m1_interaccion.nodes.pricing import pricing_node
 from graphs.m1_interaccion.nodes.proposal import proposal_node, approval_router
+#m4
+from graphs.m4_evolucion.nodes.extract_course_data import extract_course_data
+from graphs.m4_evolucion.nodes.analyze_prompts import analyze_prompts
+from graphs.m4_evolucion.nodes.detect_success_patterns import detect_success_patterns
+from graphs.m4_evolucion.nodes.register_metrics import register_metrics
+from graphs.m4_evolucion.nodes.generate_rules import generate_rules
+from graphs.m4_evolucion.nodes.detect_gaps import detect_gaps
+from graphs.m4_evolucion.nodes.generate_additional_content import generate_additional_content
+from graphs.m4_evolucion.nodes.validate_content import validate_content
+from graphs.m4_evolucion.nodes.update_content import update_content
+from graphs.m4_evolucion.nodes.update_knowledge_base import update_knowledge_base
+
 
 # Definimos el estado para el macroproceso 1
 class M1State(Dict[str, Any]):
@@ -47,4 +60,53 @@ def build_graph():
     g.add_conditional_edges("PROPOSAL", approval_router, {"WAIT": END, "ASK": END, "END": END})
 
     # Compilamos el grafo sin el checkpoint
+    return g.compile()
+
+#MACROPROCESO 4
+class M4State(Dict[str, Any]):
+    """
+    Estado para el Macroproceso 4 – Evolución de Contenido.
+    """
+    course_id: Optional[str]
+    course_data: Dict[str, Any]
+    prompts_history: List[Dict[str, Any]]
+    metrics: Dict[str, Any]
+    success_patterns: Dict[str, Any]
+    rules: List[Dict[str, Any]]
+    gaps: List[Dict[str, Any]]
+    additional_content: List[Dict[str, Any]]
+    validation_result: Dict[str, Any]
+    updated_content: Dict[str, Any]
+    knowledge_base_updates: List[Dict[str, Any]]
+
+def build_m4_graph():
+    g = StateGraph(M4State)
+
+    # Orden lineal de tus nodos del M4
+    g.add_node("EXTRACT_COURSE_DATA", extract_course_data)
+    g.add_node("ANALYZE_PROMPTS", analyze_prompts)
+    g.add_node("DETECT_SUCCESS_PATTERNS", detect_success_patterns)
+    g.add_node("REGISTER_METRICS", register_metrics)
+    g.add_node("GENERATE_RULES", generate_rules)
+    g.add_node("DETECT_GAPS", detect_gaps)
+    g.add_node("GENERATE_ADDITIONAL_CONTENT", generate_additional_content)
+    g.add_node("VALIDATE_CONTENT", validate_content)
+    g.add_node("UPDATE_CONTENT", update_content)
+    g.add_node("UPDATE_KNOWLEDGE_BASE", update_knowledge_base)
+
+    # Punto de entrada del M4
+    g.set_entry_point("EXTRACT_COURSE_DATA")
+
+    # Flujo completo tal como lo tenías en tu proyecto anterior
+    g.add_edge("EXTRACT_COURSE_DATA", "ANALYZE_PROMPTS")
+    g.add_edge("ANALYZE_PROMPTS", "DETECT_SUCCESS_PATTERNS")
+    g.add_edge("DETECT_SUCCESS_PATTERNS", "REGISTER_METRICS")
+    g.add_edge("REGISTER_METRICS", "GENERATE_RULES")
+    g.add_edge("GENERATE_RULES", "DETECT_GAPS")
+    g.add_edge("DETECT_GAPS", "GENERATE_ADDITIONAL_CONTENT")
+    g.add_edge("GENERATE_ADDITIONAL_CONTENT", "VALIDATE_CONTENT")
+    g.add_edge("VALIDATE_CONTENT", "UPDATE_CONTENT")
+    g.add_edge("UPDATE_CONTENT", "UPDATE_KNOWLEDGE_BASE")
+    g.add_edge("UPDATE_KNOWLEDGE_BASE", END)
+
     return g.compile()
