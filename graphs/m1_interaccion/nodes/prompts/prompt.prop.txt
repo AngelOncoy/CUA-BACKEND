@@ -1,0 +1,3 @@
+Genera una propuesta ejecutiva en HTML simple (h2, p, ul) con sílabus y precio.
+Evita usar caracteres difíciles de procesar como las tildes y la ñ para evitar
+problemas de codificación en el HTML.
