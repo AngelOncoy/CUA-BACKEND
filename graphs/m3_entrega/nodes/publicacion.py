@@ -1,112 +1,90 @@
+# graphs/m3_entrega/nodes/publicacion.py
 """
 Nodo de Publicación Automática en LMS
 Subproceso 3.1.1
 """
+
 import logging
 from typing import Dict, Any
 from datetime import datetime
 
+from api.config.database import SessionLocal
+from api.models.lms import Course, CourseEdition
+from .utils import load_prompt
+
 logger = logging.getLogger(__name__)
 
+# Prompt del agente de publicación
+PROMPT_PUBLICACION = load_prompt("publicacion_prompt.txt")
 
-async def publicar_en_lms(state: Dict[str, Any]) -> Dict[str, Any]:
+
+def publicar_en_lms(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Publica el curso en el LMS de forma automática.
-    
-    Pasos:
-    1. Preparar el payload del curso
-    2. Crear el curso en el LMS vía API
-    3. Configurar permisos y visibilidad
-    4. Generar URL de acceso
+
+    Lee:
+      - course_id
+      - company_id (opcional, para validar)
+
+    Hace:
+      - Marca el curso como PUBLICADO
+      - Crea una CourseEdition (edición de curso)
+      - Escribe en el estado: edition_id
+
+    Además:
+      - Agrega el prompt del agente al estado para auditoría.
     """
-    logger.info(f"[PUBLICACIÓN] Iniciando publicación del curso {state.get('curso_id')}")
-    
+    db = SessionLocal()
     try:
-        syllabus = state.get("syllabus_aprobado", {})
-        curso_id = state.get("curso_id")
-        
-        # Preparar datos del curso para el LMS
-        curso_data = {
-            "external_id": curso_id,
-            "title": syllabus.get("titulo", "Curso sin título"),
-            "description": syllabus.get("descripcion", ""),
-            "duration_hours": syllabus.get("duracion_horas", 12),
-            "level": syllabus.get("nivel", "intermedio"),
-            "industry": syllabus.get("industria", "general"),
-            "modules": syllabus.get("modulos", []),
-            "syllabus_content": syllabus.get("markdown", ""),
-            "price": syllabus.get("precio", 0),
-            "status": "published",
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
-        # Simulación de publicación en LMS
-        # En producción, aquí iría la llamada real a la API del LMS
-        lms_response = await _publicar_curso_lms(curso_data)
-        
-        if lms_response["success"]:
-            state["curso_publicado"] = True
-            state["lms_course_id"] = lms_response["course_id"]
-            state["url_acceso"] = lms_response["access_url"]
-            state["status"] = "PUBLICADO"
-            
-            logger.info(f"[PUBLICACIÓN] ✓ Curso publicado exitosamente: {lms_response['course_id']}")
-        else:
-            state["curso_publicado"] = False
-            state["errors"] = state.get("errors", [])
-            state["errors"].append(f"Error en publicación LMS: {lms_response.get('error')}")
-            logger.error(f"[PUBLICACIÓN] ✗ Fallo en publicación: {lms_response.get('error')}")
-            
-    except Exception as e:
-        logger.error(f"[PUBLICACIÓN] ✗ Excepción: {str(e)}")
-        state["curso_publicado"] = False
-        state["errors"] = state.get("errors", [])
-        state["errors"].append(f"Excepción en publicación: {str(e)}")
-    
-    return state
+        # Guardamos el prompt en el estado (para trazabilidad / inspección)
+        state["prompt_publicacion"] = PROMPT_PUBLICACION
 
+        course_id = state.get("course_id")
+        company_id = state.get("company_id")
 
-async def _publicar_curso_lms(curso_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Llama a la API del LMS para publicar el curso.
-    
-    En producción, esto haría una llamada HTTP real:
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{LMS_API_URL}/courses",
-            json=curso_data,
-            headers={"Authorization": f"Bearer {LMS_API_KEY}"}
+        if not course_id:
+            raise ValueError("course_id es obligatorio en el estado M3")
+
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            raise ValueError(f"Curso con id={course_id} no encontrado")
+
+        if company_id and course.company_id and course.company_id != company_id:
+            logger.warning(
+                "[M3][PUBLICACION] El curso %s pertenece a otra empresa (course.company_id=%s, company_id=%s)",
+                course_id,
+                course.company_id,
+                company_id,
+            )
+
+        # Actualizar estado del curso
+        course.status = "PUBLICADO"
+
+        # Crear edición
+        edition = CourseEdition(
+            course_id=course.id,
+            start_date=datetime.utcnow(),
+            status="EN_PROGRESO",
         )
-        return response.json()
-    """
-    # Simulación para desarrollo
-    import uuid
-    
-    # Simular latencia de API
-    import asyncio
-    await asyncio.sleep(0.5)
-    
-    lms_course_id = f"LMS-{uuid.uuid4().hex[:8].upper()}"
-    
-    return {
-        "success": True,
-        "course_id": lms_course_id,
-        "access_url": f"https://lms.ultraautomatizado.com/courses/{lms_course_id}",
-        "published_at": datetime.utcnow().isoformat()
-    }
+        db.add(edition)
+        db.commit()
+        db.refresh(edition)
 
+        state["edition_id"] = edition.id
+        state["status"] = "PUBLICADO"
 
-def timed_node(func):
-    """Decorador para medir el tiempo de ejecución de un nodo"""
-    async def wrapper(state: Dict[str, Any]) -> Dict[str, Any]:
-        start = datetime.now()
-        result = await func(state)
-        elapsed = (datetime.now() - start).total_seconds()
-        logger.info(f"[TIMING] {func.__name__} ejecutado en {elapsed:.2f}s")
-        return result
-    return wrapper
-
-
-# Exportar versión decorada
-publicar_en_lms = timed_node(publicar_en_lms)
+        logger.info(
+            "[M3][PUBLICACION] Curso %s publicado en LMS con edición %s",
+            course.id,
+            edition.id,
+        )
+        return state
+    except Exception as e:
+        logger.exception("[M3][PUBLICACION] Error publicando en LMS: %s", e)
+        errors = state.get("errors", [])
+        errors.append(f"PUBLICACION: {str(e)}")
+        state["errors"] = errors
+        state["status"] = "ERROR_PUBLICACION"
+        return state
+    finally:
+        db.close()

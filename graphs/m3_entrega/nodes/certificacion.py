@@ -1,135 +1,100 @@
+# graphs/m3_entrega/nodes/certificacion.py
 """
-Nodo de Emisión de Certificaciones Digitales
+Nodo de Certificación Automática
 Subproceso 3.3.2
 """
+
 import logging
 from typing import Dict, Any, List
 from datetime import datetime
-import hashlib
-import os
+import uuid
+
+from api.config.database import SessionLocal
+from api.models.lms import Enrollment, Certificate
+from .utils import load_prompt
 
 logger = logging.getLogger(__name__)
 
+PROMPT_CERTIFICACION = load_prompt("certificacion_prompt.txt")
 
-async def emitir_certificados(state: Dict[str, Any]) -> Dict[str, Any]:
+
+def _emitir_certificado(db, enrollment: Enrollment) -> Certificate:
     """
-    Emite certificados digitales automáticamente para empleados que 
-    alcanzan el umbral de finalización configurado.
-    
-    Umbral por defecto: 80% de progreso
+    Crea un certificado simple para una matrícula COMPLETADA.
     """
-    logger.info(f"[CERTIFICACIÓN] Evaluando empleados para certificación")
-    
+    code = str(uuid.uuid4())
+    cert = Certificate(
+        enrollment_id=enrollment.id,
+        issued_at=datetime.utcnow(),
+        code=code,
+        url=f"/certificates/{code}.pdf",  # simulación
+        grade=None,
+    )
+    db.add(cert)
+    return cert
+
+
+def generar_certificados(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Emite certificados para las matrículas completadas que aún no tienen certificado.
+
+    Lee:
+      - edition_id
+
+    Hace:
+      - Busca enrollments COMPLETADO sin certificado
+      - Crea Certificate
+      - Añade resumen de certificados al estado
+
+    Además:
+      - Agrega el prompt del agente al estado.
+    """
+    db = SessionLocal()
     try:
-        umbral = float(os.getenv("CERT_COMPLETION_THRESHOLD", 80))
-        metricas = state.get("metricas_progreso", [])
-        curso_id = state.get("lms_course_id")
-        curso_titulo = state.get("syllabus_aprobado", {}).get("titulo", "Curso")
-        
-        # Filtrar empleados elegibles
-        elegibles = [
-            m for m in metricas 
-            if m["porcentaje_avance"] >= umbral
-        ]
-        
-        if not elegibles:
-            logger.info(f"[CERTIFICACIÓN] ℹ No hay empleados elegibles (umbral: {umbral}%)")
-            state["certificados_emitidos"] = []
-            return state
-        
-        # Emitir certificados
-        certificados = []
-        for emp in elegibles:
-            cert = await _generar_certificado(
-                empleado=emp,
-                curso_id=curso_id,
-                curso_titulo=curso_titulo
+        state["prompt_certificacion"] = PROMPT_CERTIFICACION
+
+        edition_id = state.get("edition_id")
+        if not edition_id:
+            raise ValueError("edition_id es requerido para certificación")
+
+        enrollments: List[Enrollment] = (
+            db.query(Enrollment)
+            .filter(
+                Enrollment.edition_id == edition_id,
+                Enrollment.status == "COMPLETADO",
             )
-            certificados.append(cert)
-        
-        state["certificados_emitidos"] = certificados
-        logger.info(f"[CERTIFICACIÓN] ✓ {len(certificados)} certificados emitidos")
-        
-        # Enviar notificaciones de certificados
-        await _notificar_certificados(certificados)
-        
-    except Exception as e:
-        logger.error(f"[CERTIFICACIÓN] ✗ Excepción: {str(e)}")
-        state["errors"] = state.get("errors", [])
-        state["errors"].append(f"Excepción en certificación: {str(e)}")
-    
-    return state
-
-
-async def _generar_certificado(
-    empleado: Dict[str, Any],
-    curso_id: str,
-    curso_titulo: str
-) -> Dict[str, Any]:
-    """
-    Genera un certificado digital con hash de verificación.
-    """
-    import uuid
-    
-    certificado_id = f"CERT-{uuid.uuid4().hex[:12].upper()}"
-    fecha_emision = datetime.utcnow().isoformat()
-    
-    # Generar hash de verificación
-    data_verificacion = f"{certificado_id}{empleado['empleado_id']}{curso_id}{fecha_emision}"
-    hash_verificacion = hashlib.sha256(data_verificacion.encode()).hexdigest()[:16]
-    
-    # Calcular calificación final
-    calificacion_final = empleado.get("porcentaje_avance", 0)
-    
-    certificado = {
-        "certificado_id": certificado_id,
-        "empleado_id": empleado["empleado_id"],
-        "nombre_empleado": empleado["nombre"],
-        "curso_id": curso_id,
-        "nombre_curso": curso_titulo,
-        "fecha_emision": fecha_emision,
-        "calificacion_final": calificacion_final,
-        "puntos_totales": empleado.get("puntos_ganados", 0),
-        "url_certificado": f"https://lms.ultraautomatizado.com/certificates/{certificado_id}",
-        "url_verificacion": f"https://lms.ultraautomatizado.com/verify/{hash_verificacion}",
-        "hash_verificacion": hash_verificacion,
-        "medallas_obtenidas": empleado.get("medallas_obtenidas", [])
-    }
-    
-    # Guardar en base de datos (simulación)
-    await _guardar_certificado_db(certificado)
-    
-    logger.info(f"[CERT] Generado {certificado_id} para {empleado['nombre']}")
-    
-    return certificado
-
-
-async def _guardar_certificado_db(certificado: Dict[str, Any]):
-    """
-    Guarda el certificado en la base de datos.
-    
-    En producción:
-    
-    async with get_db_session() as session:
-        cert_model = Certificado(**certificado)
-        session.add(cert_model)
-        await session.commit()
-    """
-    import asyncio
-    await asyncio.sleep(0.1)
-    logger.debug(f"[DB] Certificado {certificado['certificado_id']} guardado")
-
-
-async def _notificar_certificados(certificados: List[Dict[str, Any]]):
-    """
-    Envía notificaciones por email con los certificados.
-    """
-    # Aquí se integraría con el servicio de email
-    for cert in certificados:
-        logger.info(
-            f"[NOTIF] Email de certificado enviado a "
-            f"{cert['nombre_empleado']} ({cert['certificado_id']})"
+            .all()
         )
-    
-    import asyncio
-    await asyncio.sleep(0.2)
+
+        certificados_emitidos: List[Dict[str, Any]] = []
+
+        for enr in enrollments:
+            if enr.certificate:
+                continue  # ya tiene certificado
+            cert = _emitir_certificado(db, enr)
+            db.flush()
+            certificados_emitidos.append(
+                {
+                    "certificate_id": cert.id,
+                    "code": cert.code,
+                    "enrollment_id": enr.id,
+                }
+            )
+            logger.info(
+                "[M3][CERTIFICACION] Certificado emitido enrollment=%s code=%s",
+                enr.id,
+                cert.code,
+            )
+
+        db.commit()
+
+        state["certificates"] = certificados_emitidos
+        return state
+    except Exception as e:
+        logger.exception("[M3][CERTIFICACION] Error generando certificados: %s", e)
+        errors = state.get("errors", [])
+        errors.append(f"CERTIFICACION: {str(e)}")
+        state["errors"] = errors
+        return state
+    finally:
+        db.close()
