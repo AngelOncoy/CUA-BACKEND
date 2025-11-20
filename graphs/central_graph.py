@@ -8,9 +8,7 @@ from graphs.m1_interaccion.nodes.mapping import map_node
 from graphs.m1_interaccion.nodes.syllabus import syllabus_node
 from graphs.m1_interaccion.nodes.pricing import pricing_node
 from graphs.m1_interaccion.nodes.proposal import proposal_node, approval_router
-from core.config import GRAPH_DB_PATH
-import sqlite3
-from langgraph.checkpoint.sqlite import SqliteSaver
+
 
 # Definimos el estado para el macroproceso 1
 class M1State(TypedDict, total=False):
@@ -51,9 +49,5 @@ def build_graph():
     g.add_edge("PRICING", "PROPOSAL")
     g.add_conditional_edges("PROPOSAL", approval_router, {"WAIT": END, "ASK": END, "END": END})
 
-    # Conexión con la base de datos para persistencia del estado
-    conn = sqlite3.connect(GRAPH_DB_PATH, check_same_thread=False)
-    checkpointer = SqliteSaver(conn)
-
-    # Compilamos el grafo con el punto de control
-    return g.compile(checkpointer=checkpointer)
+    # Compilamos el grafo sin el checkpoint
+    return g.compile()
