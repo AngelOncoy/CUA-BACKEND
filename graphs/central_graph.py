@@ -19,6 +19,15 @@ from graphs.m4_evolucion.nodes.generate_additional_content import generate_addit
 from graphs.m4_evolucion.nodes.validate_content import validate_content
 from graphs.m4_evolucion.nodes.update_content import update_content
 from graphs.m4_evolucion.nodes.update_knowledge_base import update_knowledge_base
+from core.shared_memory_manager import SharedMemoryManager
+
+# --- Importar M2 ---
+from graphs.m2_creacion.graph import build_graph as build_m2_graph           # grafo de M2 :contentReference[oaicite:1]{index=1}
+from graphs.m2_creacion.adapter import m1_to_m2_input                        # adaptador M1→M2 :contentReference[oaicite:2]{index=2}
+
+# Compilamos el grafo de M2 una sola vez
+M2_APP = build_m2_graph()
+
 
 
 # Definimos el estado para el macroproceso 1
@@ -36,6 +45,23 @@ class M1State(Dict[str, Any]):
     decision: Optional[str]
     metricas: Dict[str, Any]
     historial: List[Dict[str, Any]]
+
+
+# Modificar el nodo NLP para usar memoria compartida
+def nlp_node_with_shared_memory(state, config):
+    # Crear un objeto de memoria compartida
+    shm_manager = SharedMemoryManager(size=1024)  # Ajusta el tamaño según el estado
+    # Guardar el estado inicial en memoria compartida
+    shm_manager.write(state)
+
+    # Aquí se procesan los datos del nodo (ejemplo de procesamiento)
+    state['prompt_raw'] = "Texto procesado en NLP"
+    state['confianza_nlp'] = 0.98
+
+    # Guardar el nuevo estado en la memoria compartida
+    shm_manager.write(state)
+
+    return state
 
 def build_graph():
     g = StateGraph(M1State)
@@ -61,6 +87,28 @@ def build_graph():
 
     # Compilamos el grafo sin el checkpoint
     return g.compile()
+
+
+
+# Aquí enganchamos M2:
+    # - WAIT  → termina
+    # - ASK   → vuelve a ASK (para mantener tu flujo de aclaración)
+    # - M2    → ejecuta el grafo del Macroproceso 2
+    g.add_conditional_edges(
+        "PROPOSAL",
+        approval_router_ext,
+        {
+            "WAIT": END,
+            "ASK": "ASK",
+            "M2": "M2",
+        },
+    )
+
+    # Después de ejecutar M2, terminamos (puedes cambiar esto luego si quieres seguir a M3/M4)
+    g.add_edge("M2", END)
+
+    return g.compile()
+
 
 #MACROPROCESO 4
 class M4State(Dict[str, Any]):
