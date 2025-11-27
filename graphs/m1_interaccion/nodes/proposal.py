@@ -50,7 +50,7 @@ def proposal_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # Función de enrutamiento para la decisión de aprobación
-def approval_router(state: "M1State") -> str:
+def approval_router(state: Dict[str, Any]) -> str:
     decision = state.get("decision")
     log.info(f"Evaluando decisión del usuario → {decision}")
 

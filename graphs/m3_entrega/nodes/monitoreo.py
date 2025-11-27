@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 PROMPT_MONITOREO = load_prompt("monitoreo_prompt.txt")
 
 
-def actualizar_analytics(state: Dict[str, Any]) -> Dict[str, Any]:
+def generar_analytics(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Calcula métricas básicas de la edición del curso.
 
@@ -71,6 +71,10 @@ def actualizar_analytics(state: Dict[str, Any]) -> Dict[str, Any]:
         )
 
         state["analytics"] = analytics
+        
+        # Copiar a analytics_dashboard para que la API pueda leerlo
+        state["analytics_dashboard"] = analytics
+        
         logger.info(
             "[M3][MONITOREO] Analytics edición %s -> %s",
             edition_id,

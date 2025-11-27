@@ -78,9 +78,16 @@ def preparar_gamificacion(state: Dict[str, Any]) -> Dict[str, Any]:
                 g["medals"],
             )
 
+        # Actualizar analytics (usado internamente)
         analytics = state.get("analytics", {})
         analytics["gamification_snapshot"] = gamification
         state["analytics"] = analytics
+        
+        # También actualizar analytics_dashboard (usado por API)
+        dashboard = state.get("analytics_dashboard", {})
+        dashboard["gamification_snapshot"] = gamification
+        state["analytics_dashboard"] = dashboard
+        state["gamificacion_activa"] = True
 
         return state
     except Exception as e:

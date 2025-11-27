@@ -59,10 +59,9 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
             "cliente_id": request.cliente_id,
             "cliente_email": request.cliente_email,
             "syllabus_aprobado": request.syllabus_aprobado,
-            "empleados_asignados": request.empleados or [],
+            "empleados": request.empleados or [],
             "status": "INICIANDO",
-            "errors": [],
-            "timestamp_inicio": None
+            "errors": []
         }
 
         config = {"configurable": {"thread_id": run_id}}
@@ -96,32 +95,15 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
 
 @router.post("/consultar-progreso")
 async def consultar_progreso(request: ConsultarProgressRequest):
-
-    try:
-        run_id = request.run_id
-        logger.info(f"🟡 [M3] Consultando progreso de {run_id}")
-
-        config = {"configurable": {"thread_id": run_id}}
-        state = await m3_app.aget_state(config)
-
-        if not state or not state.values:
-            raise HTTPException(status_code=404, detail="Proceso no encontrado")
-
-        s = state.values
-
-        return {
-            "run_id": run_id,
-            "status": s.get("status"),
-            "lms_course_id": s.get("lms_course_id"),
-            "analytics_dashboard": s.get("analytics_dashboard", {}),
-            "metricas_empleados": s.get("metricas_progreso", []),
-            "certificados_emitidos": s.get("certificados_emitidos", []),
-            "ultima_actualizacion": s.get("timestamp_fin")
-        }
-
-    except Exception as e:
-        logger.error(f"🔴 [M3] Error consultando progreso: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error consultando progreso: {str(e)}")
+    """
+    Consulta el progreso de un proceso M3.
+    NOTA: Este endpoint requiere persistencia (checkpointer) que no está habilitada actualmente.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="Endpoint no disponible: requiere persistencia de estado (checkpointer). "
+               "El flujo M3 se ejecuta de principio a fin en una sola llamada."
+    )
 
 
 # ============================================================
@@ -132,37 +114,13 @@ async def consultar_progreso(request: ConsultarProgressRequest):
 async def actualizar_analytics(run_id: str):
     """
     Fuerza una re-evaluación de analytics y certificación.
+    NOTA: Este endpoint requiere persistencia (checkpointer) que no está habilitada actualmente.
     """
-
-    try:
-        logger.info(f"🟠 [M3] Actualizando analytics para {run_id}")
-
-        config = {"configurable": {"thread_id": run_id}}
-        state = await m3_app.aget_state(config)
-
-        if not state or not state.values:
-            raise HTTPException(status_code=404, detail="Proceso no encontrado")
-
-        current = state.values
-
-        from graphs.m3_entrega.nodes.monitoreo import generar_analytics
-        from graphs.m3_entrega.nodes.certificacion import emitir_certificados
-
-        updated = await generar_analytics(current)
-        updated = await emitir_certificados(updated)
-
-        await m3_app.aupdate_state(config, updated)
-
-        return {
-            "run_id": run_id,
-            "actualizado": True,
-            "analytics_dashboard": updated.get("analytics_dashboard", {}),
-            "nuevos_certificados": len(updated.get("certificados_emitidos", []))
-        }
-
-    except Exception as e:
-        logger.error(f"🔴 [M3] Error en actualizar_analytics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error actualizando analytics: {str(e)}")
+    raise HTTPException(
+        status_code=501,
+        detail="Endpoint no disponible: requiere persistencia de estado (checkpointer). "
+               "El flujo M3 se ejecuta de principio a fin en una sola llamada."
+    )
 
 
 # ============================================================

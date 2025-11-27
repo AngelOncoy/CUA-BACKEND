@@ -105,7 +105,15 @@ def enviar_notificaciones(state: Dict[str, Any]) -> Dict[str, Any]:
             logger.info("[M3][NOTIF] Invitación de curso enviada a %s", email)
 
         db.commit()
-        state["notifications_sent"] = True
+        
+        # Actualizar estado con campos esperados por la API
+        state["notificacion_enviada"] = True
+        state["email_status"] = {
+            "empresa_notificada": True,
+            "empleados_notificados": len(employees),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
         return state
     except Exception as e:
         logger.exception("[M3][NOTIF] Error enviando notificaciones: %s", e)

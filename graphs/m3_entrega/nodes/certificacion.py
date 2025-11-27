@@ -88,7 +88,11 @@ def generar_certificados(state: Dict[str, Any]) -> Dict[str, Any]:
 
         db.commit()
 
-        state["certificates"] = certificados_emitidos
+        # Actualizar estado con campos esperados por la API
+        state["certificados_emitidos"] = certificados_emitidos
+        state["certificates"] = certificados_emitidos  # Mantener compatibilidad
+        state["timestamp_fin"] = datetime.utcnow().isoformat()
+        
         return state
     except Exception as e:
         logger.exception("[M3][CERTIFICACION] Error generando certificados: %s", e)

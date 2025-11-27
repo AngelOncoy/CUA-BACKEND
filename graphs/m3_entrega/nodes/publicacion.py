@@ -70,8 +70,12 @@ def publicar_en_lms(state: Dict[str, Any]) -> Dict[str, Any]:
         db.commit()
         db.refresh(edition)
 
+        # Actualizar estado con todos los campos esperados por la API
         state["edition_id"] = edition.id
         state["status"] = "PUBLICADO"
+        state["curso_publicado"] = True
+        state["lms_course_id"] = str(course.id)
+        state["url_acceso"] = f"/lms/courses/{course.id}/editions/{edition.id}"
 
         logger.info(
             "[M3][PUBLICACION] Curso %s publicado en LMS con edición %s",
