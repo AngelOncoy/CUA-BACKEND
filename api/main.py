@@ -11,6 +11,7 @@ from api.routes.m3_entrega import router as m3_router
 from api.routes.m4_evolucion import router as m4_router
 from api.routes.auth_routes import router as auth_router
 from api.routes.user_routes import router as user_router
+from api.routes.companies import router as companies_router
 
 # =============== Base de Datos =====================
 from api.config.database import Base, engine
@@ -65,6 +66,9 @@ app.add_middleware(
 # ====================================================
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(user_router, prefix="/users", tags=["Users"])
+
+# CRUD endpoints
+app.include_router(companies_router, prefix="/api", tags=["Companies"])
 
 # Macroprocesos
 app.include_router(m1_router, prefix="/m1", tags=["Macroproceso 1"])

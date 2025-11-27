@@ -53,10 +53,19 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
         run_id = f"M3-{uuid.uuid4().hex[:12].upper()}"
         logger.info(f"🔵 [M3] Iniciando entrega {run_id} para curso {request.curso_id}")
 
+        # Convertir IDs a enteros si son strings numéricos (para compatibilidad con DB)
+        curso_id = request.curso_id
+        if isinstance(curso_id, str) and curso_id.isdigit():
+            curso_id = int(curso_id)
+        
+        cliente_id = request.cliente_id
+        if isinstance(cliente_id, str) and cliente_id.isdigit():
+            cliente_id = int(cliente_id)
+
         initial_state = {
             "run_id": run_id,
-            "curso_id": request.curso_id,
-            "cliente_id": request.cliente_id,
+            "curso_id": curso_id,
+            "cliente_id": cliente_id,
             "cliente_email": request.cliente_email,
             "syllabus_aprobado": request.syllabus_aprobado,
             "empleados": request.empleados or [],
@@ -75,7 +84,7 @@ async def iniciar_entrega(request: IniciarEntregaRequest):
             "lms_course_id": final_state.get("lms_course_id"),
             "url_acceso": final_state.get("url_acceso"),
             "notificacion_enviada": final_state.get("notificacion_enviada", False),
-            "empleados_asignados_count": len(final_state.get("empleados_asignados", [])),
+            "empleados_asignados_count": len(final_state.get("enrollment_ids", [])),
             "gamificacion_activa": final_state.get("gamificacion_activa", False),
             "certificados_emitidos_count": len(final_state.get("certificados_emitidos", [])),
             "errors": final_state.get("errors", [])
