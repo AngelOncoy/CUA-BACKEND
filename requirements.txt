@@ -23,3 +23,5 @@ aiohttp
 httpx
 requests
 SQLAlchemy
+chromadb
+google-search-results
