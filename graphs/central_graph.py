@@ -1,14 +1,39 @@
 # graphs/central_graph.py
-#m1
+
 from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
+
+# ============================
+#           M1
+# ============================
 from graphs.m1_interaccion.nodes.nlp import nlp_node
 from graphs.m1_interaccion.nodes.clarify import clarify_decide, ask_node
 from graphs.m1_interaccion.nodes.mapping import map_node
 from graphs.m1_interaccion.nodes.syllabus import syllabus_node
 from graphs.m1_interaccion.nodes.pricing import pricing_node
 from graphs.m1_interaccion.nodes.proposal import proposal_node, approval_router
-#m4
+
+# ============================
+#           M2
+# ============================
+from graphs.m2_creacion.graph import build_graph as build_m2_graph
+from graphs.m2_creacion.adapter import m1_to_m2_input
+M2_APP = build_m2_graph()
+
+# ============================
+#           M3
+# ============================
+from graphs.m3_entrega.nodes.publicacion import publicar_en_lms
+from graphs.m3_entrega.nodes.notificacion import enviar_notificaciones
+from graphs.m3_entrega.nodes.asignacion import asignar_empleados
+from graphs.m3_entrega.nodes.gamificacion import preparar_gamificacion
+from graphs.m3_entrega.nodes.monitoreo import generar_analytics
+from graphs.m3_entrega.nodes.certificacion import generar_certificados
+from graphs.m3_entrega.nodes.utils import inicializar_estado as m3_inicializar
+
+# ============================
+#           M4
+# ============================
 from graphs.m4_evolucion.nodes.extract_course_data import extract_course_data
 from graphs.m4_evolucion.nodes.analyze_prompts import analyze_prompts
 from graphs.m4_evolucion.nodes.detect_success_patterns import detect_success_patterns
@@ -19,19 +44,13 @@ from graphs.m4_evolucion.nodes.generate_additional_content import generate_addit
 from graphs.m4_evolucion.nodes.validate_content import validate_content
 from graphs.m4_evolucion.nodes.update_content import update_content
 from graphs.m4_evolucion.nodes.update_knowledge_base import update_knowledge_base
-from core.shared_memory_manager import SharedMemoryManager
-
-# --- Importar M2 ---
-from graphs.m2_creacion.graph import build_graph as build_m2_graph           # grafo de M2 :contentReference[oaicite:1]{index=1}
-from graphs.m2_creacion.adapter import m1_to_m2_input                        # adaptador M1→M2 :contentReference[oaicite:2]{index=2}
-
-# Compilamos el grafo de M2 una sola vez
-M2_APP = build_m2_graph()
 
 
-
-# Definimos el estado para el macroproceso 1
+# ============================
+#      ESTADO GLOBAL
+# ============================
 class M1State(Dict[str, Any]):
+    # M1 Core
     prompt_raw: str
     entidades: Dict[str, Any]
     confianza_nlp: float
@@ -46,27 +65,30 @@ class M1State(Dict[str, Any]):
     metricas: Dict[str, Any]
     historial: List[Dict[str, Any]]
 
+    # M3 fields
+    m3_publicado: bool
+    certificados: List[Dict[str, Any]]
+    gamificacion: Dict[str, Any]
+    analytics: Dict[str, Any]
 
-# Modificar el nodo NLP para usar memoria compartida
-def nlp_node_with_shared_memory(state, config):
-    # Crear un objeto de memoria compartida
-    shm_manager = SharedMemoryManager(size=1024)  # Ajusta el tamaño según el estado
-    # Guardar el estado inicial en memoria compartida
-    shm_manager.write(state)
+    # M4 fields
+    course_data: Dict[str, Any]
+    prompts_analysis: Dict[str, Any]
+    success_patterns: Dict[str, Any]
+    gaps: List[Dict[str, Any]]
+    additional_content: List[Dict[str, Any]]
+    updated_content: Dict[str, Any]
 
-    # Aquí se procesan los datos del nodo (ejemplo de procesamiento)
-    state['prompt_raw'] = "Texto procesado en NLP"
-    state['confianza_nlp'] = 0.98
 
-    # Guardar el nuevo estado en la memoria compartida
-    shm_manager.write(state)
-
-    return state
-
+# ============================
+#       GRAFO PRINCIPAL
+# ============================
 def build_graph():
     g = StateGraph(M1State)
 
-    # Agregar nodos
+    # -------------------------
+    #          M1
+    # -------------------------
     g.add_node("NLP", nlp_node)
     g.add_node("ASK", ask_node)
     g.add_node("MAP", map_node)
@@ -74,102 +96,76 @@ def build_graph():
     g.add_node("PRICING", pricing_node)
     g.add_node("PROPOSAL", proposal_node)
 
-    # Definir punto de entrada
     g.set_entry_point("NLP")
 
-    # Flujos entre nodos
-    g.add_conditional_edges("NLP", clarify_decide, {"ASK": "ASK", "MAP": "MAP"})
-    g.add_edge("ASK", END)  # Sin bucles
+    g.add_conditional_edges("NLP", clarify_decide, {
+        "ASK": "ASK",
+        "MAP": "MAP"
+    })
+
+    g.add_edge("ASK", END)
     g.add_edge("MAP", "SYLLABUS")
     g.add_edge("SYLLABUS", "PRICING")
     g.add_edge("PRICING", "PROPOSAL")
-    g.add_conditional_edges("PROPOSAL", approval_router, {"WAIT": END, "ASK": END, "END": END})
 
-    # Compilamos el grafo sin el checkpoint
-    return g.compile()
+    g.add_conditional_edges("PROPOSAL", approval_router, {
+        "WAIT": END,
+        "ASK": "ASK",
+        "END": END,
+        "M2": "M2"
+    })
 
+    # -------------------------
+    #          M2
+    # -------------------------
+    g.add_node("M2", M2_APP)
+    g.add_edge("M2", "M3_INICIALIZAR")
 
+    # -------------------------
+    #          M3
+    # -------------------------
+    g.add_node("M3_INICIALIZAR", m3_inicializar)
+    g.add_node("M3_PUBLICAR", publicar_en_lms)
+    g.add_node("M3_NOTIFICAR", enviar_notificaciones)
+    g.add_node("M3_ASIGNAR", asignar_empleados)
+    g.add_node("M3_GAMIFICAR", preparar_gamificacion)
+    g.add_node("M3_MONITOREAR", generar_analytics)
+    g.add_node("M3_CERTIFICAR", generar_certificados)
 
-# Aquí enganchamos M2:
-    # - WAIT  → termina
-    # - ASK   → vuelve a ASK (para mantener tu flujo de aclaración)
-    # - M2    → ejecuta el grafo del Macroproceso 2
-    g.add_conditional_edges(
-        "PROPOSAL",
-        approval_router_ext,
-        {
-            "WAIT": END,
-            "ASK": "ASK",
-            "M2": "M2",
-        },
-    )
+    g.add_edge("M3_INICIALIZAR", "M3_PUBLICAR")
+    g.add_edge("M3_PUBLICAR", "M3_NOTIFICAR")
+    g.add_edge("M3_NOTIFICAR", "M3_ASIGNAR")
+    g.add_edge("M3_ASIGNAR", "M3_GAMIFICAR")
+    g.add_edge("M3_GAMIFICAR", "M3_MONITOREAR")
+    g.add_edge("M3_MONITOREAR", "M3_CERTIFICAR")
 
-    # Después de ejecutar M2, terminamos (puedes cambiar esto luego si quieres seguir a M3/M4)
-    g.add_edge("M2", END)
+    # -------------------------
+    #          M4
+    # -------------------------
+    g.add_node("M4_EXTRACT", extract_course_data)
+    g.add_node("M4_ANALYZE", analyze_prompts)
+    g.add_node("M4_SUCCESS", detect_success_patterns)
+    g.add_node("M4_METRICS", register_metrics)
+    g.add_node("M4_RULES", generate_rules)
+    g.add_node("M4_GAPS", detect_gaps)
+    g.add_node("M4_ADDITIONAL", generate_additional_content)
+    g.add_node("M4_VALIDATE", validate_content)
+    g.add_node("M4_UPDATE_CONTENT", update_content)
+    g.add_node("M4_KB", update_knowledge_base)
 
-    return g.compile()
+    g.add_edge("M3_CERTIFICAR", "M4_EXTRACT")
+    g.add_edge("M4_EXTRACT", "M4_ANALYZE")
+    g.add_edge("M4_ANALYZE", "M4_SUCCESS")
+    g.add_edge("M4_SUCCESS", "M4_METRICS")
+    g.add_edge("M4_METRICS", "M4_RULES")
+    g.add_edge("M4_RULES", "M4_GAPS")
+    g.add_edge("M4_GAPS", "M4_ADDITIONAL")
+    g.add_edge("M4_ADDITIONAL", "M4_VALIDATE")
+    g.add_edge("M4_VALIDATE", "M4_UPDATE_CONTENT")
+    g.add_edge("M4_UPDATE_CONTENT", "M4_KB")
+    g.add_edge("M4_KB", END)
 
-
-#MACROPROCESO 4
-class M4State(Dict[str, Any]):
-    """
-    Estado para el Macroproceso 4 – Evolución de Contenido.
-    Este estado incluye tanto los campos "principales"
-    como los campos intermedios que escriben los nodos.
-    """
-
-    # Campos principales del curso y flujo
-    course_id: Optional[str]
-    course_data: Dict[str, Any]
-    prompts_history: List[Dict[str, Any]]
-    metrics: Dict[str, Any]
-    success_patterns: Dict[str, Any]
-    rules: List[Dict[str, Any]]
-    gaps: List[Dict[str, Any]]
-    additional_content: List[Dict[str, Any]]
-    validation_result: Dict[str, Any]
-    updated_content: Dict[str, Any]
-    knowledge_base_updates: List[Dict[str, Any]]
-
-    # Campos que realmente escriben tus nodos (intermedios)
-    prompts_analysis: Dict[str, Any]
-    gaps_detected: bool
-    gap_details: List[Dict[str, Any]]
-    generated_content: str
-    content_validated: bool
-    validation_score: float
-    message: str
-    report: str
-
-
-def build_m4_graph():
-    g = StateGraph(M4State)
-
-    # Orden lineal de tus nodos del M4
-    g.add_node("EXTRACT_COURSE_DATA", extract_course_data)
-    g.add_node("ANALYZE_PROMPTS", analyze_prompts)
-    g.add_node("DETECT_SUCCESS_PATTERNS", detect_success_patterns)
-    g.add_node("REGISTER_METRICS", register_metrics)
-    g.add_node("GENERATE_RULES", generate_rules)
-    g.add_node("DETECT_GAPS", detect_gaps)
-    g.add_node("GENERATE_ADDITIONAL_CONTENT", generate_additional_content)
-    g.add_node("VALIDATE_CONTENT", validate_content)
-    g.add_node("UPDATE_CONTENT", update_content)
-    g.add_node("UPDATE_KNOWLEDGE_BASE", update_knowledge_base)
-
-    # Punto de entrada del M4
-    g.set_entry_point("EXTRACT_COURSE_DATA")
-
-    # Flujo completo tal como lo tenías en tu proyecto anterior
-    g.add_edge("EXTRACT_COURSE_DATA", "ANALYZE_PROMPTS")
-    g.add_edge("ANALYZE_PROMPTS", "DETECT_SUCCESS_PATTERNS")
-    g.add_edge("DETECT_SUCCESS_PATTERNS", "REGISTER_METRICS")
-    g.add_edge("REGISTER_METRICS", "GENERATE_RULES")
-    g.add_edge("GENERATE_RULES", "DETECT_GAPS")
-    g.add_edge("DETECT_GAPS", "GENERATE_ADDITIONAL_CONTENT")
-    g.add_edge("GENERATE_ADDITIONAL_CONTENT", "VALIDATE_CONTENT")
-    g.add_edge("VALIDATE_CONTENT", "UPDATE_CONTENT")
-    g.add_edge("UPDATE_CONTENT", "UPDATE_KNOWLEDGE_BASE")
-    g.add_edge("UPDATE_KNOWLEDGE_BASE", END)
-
+    # -------------------------
+    #         COMPILAR
+    # -------------------------
     return g.compile()

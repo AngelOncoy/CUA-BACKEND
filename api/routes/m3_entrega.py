@@ -1,7 +1,7 @@
 """
 api.routes.m3_entrega.py
 Endpoints oficiales del Macroproceso 3
-Entrega y Administración Automatizada del Aprendizaje
+Ahora integrados al central_graph (M3 → M4)
 """
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +10,8 @@ from typing import List, Dict, Any, Optional
 import uuid
 import logging
 
-from graphs.m3_entrega.graph import m3_app
+# 🚀 CAMBIO CLAVE: usar central_graph en lugar del grafo viejo M3
+from graphs.central_graph import build_graph
 
 router = APIRouter(
     prefix="/m3",
@@ -18,6 +19,9 @@ router = APIRouter(
 )
 
 logger = logging.getLogger(__name__)
+
+# Construimos el grafo central solo una vez
+central_app = build_graph()
 
 
 # ============================================================
@@ -39,101 +43,118 @@ class ConsultarProgressRequest(BaseModel):
 
 
 # ============================================================
-# Inicio del macroproceso
+# Inicio del macroproceso (INICIO DE M3)
 # ============================================================
 
 @router.post("/iniciar")
 async def iniciar_entrega(request: IniciarEntregaRequest):
     """
-    Inicia el macroproceso completo M3: publicación, notificación,
-    asignación, gamificación, analytics y certificación.
+    Inicia el macroproceso M3 completo dentro del grafo integrado:
+    M3_INICIALIZAR → ... → M3_CERTIFICAR → M4_EXTRACT → ... → M4_KB
     """
 
     try:
         run_id = f"M3-{uuid.uuid4().hex[:12].upper()}"
         logger.info(f"🔵 [M3] Iniciando entrega {run_id} para curso {request.curso_id}")
 
-        # Convertir IDs a enteros si son strings numéricos (para compatibilidad con DB)
-        curso_id = request.curso_id
-        if isinstance(curso_id, str) and curso_id.isdigit():
-            curso_id = int(curso_id)
-        
-        cliente_id = request.cliente_id
-        if isinstance(cliente_id, str) and cliente_id.isdigit():
-            cliente_id = int(cliente_id)
+        # Conversión a int si corresponde
+        curso_id = int(request.curso_id) if request.curso_id.isdigit() else request.curso_id
+        cliente_id = int(request.cliente_id) if request.cliente_id.isdigit() else request.cliente_id
 
+        # =============================
+        # ESTADO INICIAL DEL CENTRAL_GRAPH
+        # =============================
         initial_state = {
-            "run_id": run_id,
+            "prompt_raw": "",
+            "entidades": {},
+            "confianza_nlp": 1.0,
+            "requiere_clarificacion": False,
+            "preguntas": [],
+            "respuestas": [],
+            "mapping": {},
+            "syllabus": request.syllabus_aprobado,
+            "precio": {},
+            "propuesta_html": "",
+            "decision": "",
+            "metricas": {},
+            "historial": [],
+
+            # M3 datos
             "curso_id": curso_id,
             "cliente_id": cliente_id,
             "cliente_email": request.cliente_email,
-            "syllabus_aprobado": request.syllabus_aprobado,
             "empleados": request.empleados or [],
-            "status": "INICIANDO",
-            "errors": []
+            "m3_publicado": False,
+            "certificados": [],
+            "gamificacion": {},
+            "analytics": {},
+
+            # M4 datos mínimos
+            "course_data": request.syllabus_aprobado,
+            "prompts_analysis": {},
+            "success_patterns": {},
+            "gaps": [],
+            "additional_content": [],
+            "updated_content": {}
         }
 
-        config = {"configurable": {"thread_id": run_id}}
+        # =========================================
+        # EJECUTAR el grafo central desde M3_INICIALIZAR
+        # =========================================
 
-        final_state = await m3_app.ainvoke(initial_state, config=config)
+        final_state = await central_app.ainvoke(
+            initial_state,
+            start_at="M3_INICIALIZAR"
+        )
 
+        # =========================================
+        # Generar respuesta limpia
+        # =========================================
         response = {
             "run_id": run_id,
-            "status": final_state.get("status", "COMPLETADO"),
-            "curso_publicado": final_state.get("curso_publicado", False),
-            "lms_course_id": final_state.get("lms_course_id"),
-            "url_acceso": final_state.get("url_acceso"),
-            "notificacion_enviada": final_state.get("notificacion_enviada", False),
-            "empleados_asignados_count": len(final_state.get("enrollment_ids", [])),
-            "gamificacion_activa": final_state.get("gamificacion_activa", False),
-            "certificados_emitidos_count": len(final_state.get("certificados_emitidos", [])),
-            "errors": final_state.get("errors", [])
+            "status": "COMPLETADO",
+            "curso_publicado": final_state.get("m3_publicado", False),
+            "certificados_emitidos_count": len(final_state.get("certificados", [])),
+            "gamificacion": final_state.get("gamificacion", {}),
+            "analytics": final_state.get("analytics", {}),
+
+            # Datos M4
+            "rules": final_state.get("rules", []),
+            "gaps_detected": final_state.get("gaps", []),
+            "updated_content": final_state.get("updated_content", {}),
+            "knowledge_base_updates": final_state.get("knowledge_base_updates", [])
         }
 
-        logger.info(f"🟢 [M3] Entrega finalizada {run_id}")
+        logger.info(f"🟢 [M3+M4] Macroproceso completado {run_id}")
         return response
 
     except Exception as e:
         logger.error(f"🔴 [M3] Error en iniciar_entrega: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error al iniciar entrega: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"[M3 ERROR] {str(e)}")
 
 
 # ============================================================
-# Consultar progreso
+# Endpoints NO usados (persistencia no implementada)
 # ============================================================
 
 @router.post("/consultar-progreso")
 async def consultar_progreso(request: ConsultarProgressRequest):
-    """
-    Consulta el progreso de un proceso M3.
-    NOTA: Este endpoint requiere persistencia (checkpointer) que no está habilitada actualmente.
-    """
     raise HTTPException(
         status_code=501,
-        detail="Endpoint no disponible: requiere persistencia de estado (checkpointer). "
-               "El flujo M3 se ejecuta de principio a fin en una sola llamada."
+        detail="Progreso no disponible: M3 se ejecuta completo en una sola llamada."
     )
 
-
-# ============================================================
-# Actualizar métricas manualmente
-# ============================================================
 
 @router.post("/actualizar-analytics/{run_id}")
 async def actualizar_analytics(run_id: str):
-    """
-    Fuerza una re-evaluación de analytics y certificación.
-    NOTA: Este endpoint requiere persistencia (checkpointer) que no está habilitada actualmente.
-    """
     raise HTTPException(
         status_code=501,
-        detail="Endpoint no disponible: requiere persistencia de estado (checkpointer). "
-               "El flujo M3 se ejecuta de principio a fin en una sola llamada."
+        detail="Analytics no puede actualizarse manualmente: no hay persistencia."
     )
 
 
 # ============================================================
-# Health
+# Healthcheck
 # ============================================================
 
 @router.get("/health")
@@ -141,5 +162,5 @@ async def health_check():
     return {
         "service": "Macroproceso 3",
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "2.0.0 (integrado)"
     }
